@@ -6,6 +6,7 @@
 
 // Public node modules.
 const _ = require('lodash');
+const { buildFederatedSchema } = require('@apollo/federation');
 const { ApolloServer } = require('apollo-server-koa');
 const depthLimit = require('graphql-depth-limit');
 const loadConfigs = require('./load-config');
@@ -101,7 +102,9 @@ module.exports = strapi => {
         };
       }
 
-      const server = new ApolloServer(serverParams);
+      const otherServerParams = _.omit(serverParams, ['typeDefs', 'resolvers']);
+      const schema = buildFederatedSchema({ typeDefs, resolvers });
+      const server = new ApolloServer({ schema, ...otherServerParams });
 
       server.applyMiddleware({
         app: strapi.app,

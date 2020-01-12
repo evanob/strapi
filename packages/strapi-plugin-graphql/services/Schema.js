@@ -6,7 +6,8 @@
  * @description: A set of functions similar to controller's actions to avoid code duplication.
  */
 
-const { gql, makeExecutableSchema } = require('apollo-server-koa');
+const { buildFederatedSchema } = require('@apollo/federation');
+const { gql } = require('apollo-server-koa');
 const _ = require('lodash');
 const graphql = require('graphql');
 const Query = require('./Query.js');
@@ -297,16 +298,13 @@ const schemaBuilder = {
     // // Build schema.
     if (!strapi.config.currentEnvironment.server.production) {
       // Write schema.
-      const schema = makeExecutableSchema({
-        typeDefs,
+      const schema = buildFederatedSchema({
+        typeDefs: gql(typeDefs),
         resolvers,
       });
 
       this.writeGenerateSchema(graphql.printSchema(schema));
     }
-
-    // Remove custom scalar (like Upload);
-    typeDefs = Types.removeCustomScalar(typeDefs, resolvers);
 
     return {
       typeDefs: gql(typeDefs),
