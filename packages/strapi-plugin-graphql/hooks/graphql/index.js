@@ -8,8 +8,23 @@
 const _ = require('lodash');
 const { buildFederatedSchema } = require('@apollo/federation');
 const { ApolloServer } = require('apollo-server-koa');
+const { transformSchema, FilterRootFields } = require('graphql-tools');
 const depthLimit = require('graphql-depth-limit');
 const loadConfigs = require('./load-config');
+
+const removeExplicitlyDisabledResolvers = schema => {
+  const resolvers = strapi.plugins.graphql.config._schema.graphql.resolver;
+
+  return transformSchema(schema, [
+    new FilterRootFields((operation, fieldName) => {
+      const resolverIsAbsent =
+        !resolvers[operation] || resolvers[operation][fieldName] === undefined;
+      const resolverIsTruthy = !!resolvers[operation][fieldName];
+
+      return resolverIsAbsent || resolverIsTruthy;
+    }),
+  ]);
+};
 
 module.exports = strapi => {
   const { appPath, installedPlugins } = strapi.config;
@@ -103,7 +118,9 @@ module.exports = strapi => {
       }
 
       const otherServerParams = _.omit(serverParams, ['typeDefs', 'resolvers']);
-      const schema = buildFederatedSchema({ typeDefs, resolvers });
+      const schema = removeExplicitlyDisabledResolvers(
+        buildFederatedSchema({ typeDefs, resolvers })
+      );
       const server = new ApolloServer({ schema, ...otherServerParams });
 
       server.applyMiddleware({

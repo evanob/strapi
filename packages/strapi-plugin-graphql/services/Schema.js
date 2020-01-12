@@ -64,7 +64,7 @@ const schemaBuilder = {
     } else if (type === 'query' || type === 'mutation') {
       return lines
         .map((line, index) => {
-          if (['{', '}'].includes(line)) {
+          if (['{', '}'].includes(line) || _.isEmpty(fields)) {
             return '';
           }
 
@@ -271,29 +271,85 @@ const schemaBuilder = {
       return {};
     }
 
+    const fieldsToRemove = typeName =>
+      Object.keys(resolvers[typeName]).filter(
+        key => resolvers[typeName][key] === false
+      );
+
+    const removeFields = (document, fieldsToRemove) =>
+      document
+        .split('\n')
+        .map(line => {
+          const shouldRemove = fieldsToRemove.some(field =>
+            line.match(new RegExp(`^\\s*${field}(\\(.+\\))?: `))
+          );
+          return shouldRemove ? '' : line;
+        })
+        .join('\n');
+
+    const cleanedQuery = removeFields(query, fieldsToRemove('Query'));
+    const cleanedMutation = removeFields(mutation, fieldsToRemove('Mutation'));
+    const shadowCRUDQuery = removeFields(
+      shadowCRUD.query &&
+        this.formatGQL(shadowCRUD.query, resolver.Query, null, 'query'),
+      fieldsToRemove('Query')
+    );
+
+    const anyMutationsDefined = !(
+      _.isEmpty(shadowCRUD.mutation) && cleanedMutation.match(/^\s+$/)
+    );
+
     // Concatenate.
     let typeDefs = `
       ${definition}
       ${shadowCRUD.definition}
       ${componentsSchema.definition}
-      type Query {${shadowCRUD.query &&
-        this.formatGQL(
-          shadowCRUD.query,
-          resolver.Query,
-          null,
-          'query'
-        )}${query}}
-      type Mutation {${shadowCRUD.mutation &&
-        this.formatGQL(
-          shadowCRUD.mutation,
-          resolver.Mutation,
-          null,
-          'mutation'
-        )}${mutation}}
+      type Query {
+        ${shadowCRUDQuery}
+        ${cleanedQuery}
+      }`;
+
+    if (anyMutationsDefined) {
+      typeDefs += `
+        type Mutation {${shadowCRUD.mutation &&
+          this.formatGQL(
+            shadowCRUD.mutation,
+            resolver.Mutation,
+            null,
+            'mutation'
+          )}
+          ${cleanedMutation}
+        }
+      `;
+    } else {
+      delete resolvers.Mutation;
+    }
+
+    typeDefs += `
       ${Types.addCustomScalar(resolvers)}
       ${Types.addInput()}
       ${polymorphicDef}
     `;
+
+    const disabledTypes = Object.keys(
+      strapi.plugins.graphql.config._schema.graphql.type
+    ).filter(
+      key => strapi.plugins.graphql.config._schema.graphql.type[key] === false
+    );
+    disabledTypes.forEach(typeName => {
+      const typeMatcher = new RegExp(
+        `(extend )?type\\s+${typeName}\\s+{[0-9a-zA-Z_ !:,\\s()\\[\\]]+}`,
+        "g"
+      );
+      const fieldMatcher = new RegExp(
+        `^\\s*\\w+(\\(.+\\))?:\\s+\\[?${typeName}!?\\]?\\b.*$`,
+        "gm"
+      );
+      typeDefs = typeDefs
+        .replace(typeMatcher, "")
+        .replace(fieldMatcher, "\n")
+        .replace(/type Mutation\s{\s+}/, "");
+    });
 
     // // Build schema.
     if (!strapi.config.currentEnvironment.server.production) {

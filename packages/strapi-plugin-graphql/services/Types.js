@@ -211,9 +211,10 @@ module.exports = {
     const def = customDefs + defs;
     const types = graphql
       .parse(def)
-      .definitions.filter(
-        def => def.kind === 'ObjectTypeDefinition' && def.name.value !== 'Query'
-      )
+      .definitions.filter(def => (
+        strapi.plugins.graphql.config._schema.graphql.type[def.name.value] !== false &&
+        def.kind === 'ObjectTypeDefinition' && def.name.value !== 'Query'
+      ))
       .map(def => def.name.value);
 
     if (types.length > 0) {
