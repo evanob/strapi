@@ -83,11 +83,14 @@ module.exports = {
       return type;
     }
 
+    const ensureRequired = typeName =>
+      typeName.match(/!$/) ? typeName : `${typeName}!`;
+
     if (definition.type === 'component') {
       const globalId = strapi.components[definition.component].globalId;
 
       const { required, repeatable } = definition;
-      let typeName = required === true ? `${globalId}` : globalId;
+      let typeName = required === true ? ensureRequired(globalId) : globalId;
 
       if (rootType === 'mutation') {
         typeName =
@@ -99,9 +102,9 @@ module.exports = {
       }
 
       if (repeatable === true) {
-        return `[${typeName}]`;
+        return `[${ensureRequired(typeName)}]!`;
       }
-      return `${typeName}`;
+      return typeName;
     }
 
     if (definition.type === 'dynamiczone') {
@@ -117,7 +120,7 @@ module.exports = {
         typeName = `${unionName}Input!`;
       }
 
-      return `[${typeName}]${required ? '!' : ''}`;
+      return `[${ensureRequired(typeName)}]${required ? '!' : ''}`;
     }
 
     const ref = definition.model || definition.collection;
@@ -132,10 +135,10 @@ module.exports = {
 
       if (plural) {
         if (rootType === 'mutation') {
-          return '[ID]';
+          return '[ID!]';
         }
 
-        return `[${globalId}]`;
+        return `[${ensureRequired(globalId)}]`;
       }
 
       if (rootType === 'mutation') {
@@ -146,10 +149,10 @@ module.exports = {
     }
 
     if (rootType === 'mutation') {
-      return definition.model ? 'ID' : '[ID]';
+      return definition.model ? 'ID' : '[ID!]!';
     }
 
-    return definition.model ? 'Morph' : '[Morph]';
+    return definition.model ? 'Morph' : '[Morph!]!';
   },
 
   /**
@@ -238,7 +241,7 @@ module.exports = {
 
   addInput() {
     return `
-      input InputID { id: ID!}
+      input InputID { id: ID! }
     `;
   },
 
