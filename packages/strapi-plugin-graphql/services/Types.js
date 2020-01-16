@@ -118,9 +118,11 @@ module.exports = {
 
       if (rootType === 'mutation') {
         typeName = `${unionName}Input!`;
+      } else if (definition.singular) {
+        return required ? ensureRequired(typeName) : typeName;
       }
 
-      return `[${ensureRequired(typeName)}]${required ? '!' : ''}`;
+      return `[${ensureRequired(typeName)}]!`;
     }
 
     const ref = definition.model || definition.collection;
@@ -138,7 +140,7 @@ module.exports = {
           return '[ID!]';
         }
 
-        return `[${ensureRequired(globalId)}]`;
+        return `[${ensureRequired(globalId)}]!`;
       }
 
       if (rootType === 'mutation') {
@@ -214,10 +216,13 @@ module.exports = {
     const def = customDefs + defs;
     const types = graphql
       .parse(def)
-      .definitions.filter(def => (
-        strapi.plugins.graphql.config._schema.graphql.type[def.name.value] !== false &&
-        def.kind === 'ObjectTypeDefinition' && def.name.value !== 'Query'
-      ))
+      .definitions.filter(
+        def =>
+          strapi.plugins.graphql.config._schema.graphql.type[def.name.value] !==
+            false &&
+          def.kind === 'ObjectTypeDefinition' &&
+          def.name.value !== 'Query'
+      )
       .map(def => def.name.value);
 
     if (types.length > 0) {
@@ -263,7 +268,7 @@ module.exports = {
 
     const inputs = `
       input ${inputName} {
-        
+
         ${Object.keys(model.attributes)
           .map(attribute => {
             return `${attribute}: ${this.convertType({

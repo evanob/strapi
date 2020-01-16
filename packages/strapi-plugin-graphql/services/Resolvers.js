@@ -282,12 +282,24 @@ const buildShadowCRUD = (models, plugin) => {
       initialState['id'] = 'ID!';
     }
 
-    acc.resolvers[globalId] = {
-      // define the default id resolver
-      id(parent) {
-        return parent[model.primaryKey];
+    const singularDynamicZoneResolvers = Object.entries(model.attributes)
+      .filter(([, val]) => val.type === 'dynamiczone' && val.singular)
+      .reduce((result, [fieldName]) => {
+        result[fieldName] = parent => {
+          return parent[fieldName] && parent[fieldName][0];
+        };
+        return result;
+      }, {});
+
+    acc.resolvers[globalId] = _.merge(
+      {
+        // define the default id resolver
+        id(parent) {
+          return parent[model.primaryKey];
+        },
       },
-    };
+      singularDynamicZoneResolvers
+    );
 
     // Add timestamps attributes.
     if (_.isArray(_.get(model, 'options.timestamps'))) {
