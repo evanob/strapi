@@ -11,6 +11,7 @@ const { GraphQLUpload } = require('apollo-server-koa');
 const graphql = require('graphql');
 const { GraphQLJSON } = require('graphql-type-json');
 const { GraphQLDate, GraphQLDateTime } = require('graphql-iso-date');
+const Markdown = require('../types/markdown');
 const Time = require('../types/time');
 const GraphQLLong = require('graphql-type-long');
 
@@ -74,6 +75,9 @@ module.exports = {
         case 'enumeration':
           type = this.convertEnumType(definition, modelName, attributeName);
           break;
+        case 'richtext':
+          type = 'Markdown';
+          break
       }
 
       if (definition.required && action !== 'update') {
@@ -197,6 +201,7 @@ module.exports = {
       Date: GraphQLDate,
       Long: GraphQLLong,
       Upload: GraphQLUpload,
+      Markdown
     };
 
     Object.assign(resolvers, scalars);
