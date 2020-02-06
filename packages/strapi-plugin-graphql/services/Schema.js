@@ -325,30 +325,32 @@ const schemaBuilder = {
       delete resolvers.Mutation;
     }
 
-    typeDefs += `
-      ${Types.addCustomScalar(resolvers)}
-      ${Types.addInput()}
-      ${polymorphicDef}
-    `;
-
     const disabledTypes = Object.keys(
       strapi.plugins.graphql.config._schema.graphql.type
     ).filter(
       key => strapi.plugins.graphql.config._schema.graphql.type[key] === false
     );
+    const morphIsDisabled = disabledTypes.includes('Morph');
+
+    typeDefs += `
+      ${Types.addCustomScalar(resolvers)}
+      ${Types.addInput()}
+      ${morphIsDisabled ? '' : polymorphicDef}
+    `;
+
     disabledTypes.forEach(typeName => {
       const typeMatcher = new RegExp(
         `(extend )?type\\s+${typeName}\\s+{[0-9a-zA-Z_ !:,\\s()\\[\\]]+}`,
-        "g"
+        'g'
       );
       const fieldMatcher = new RegExp(
         `^\\s*\\w+(\\(.+\\))?:\\s+\\[?${typeName}!?\\]?\\b.*$`,
-        "gm"
+        'gm'
       );
       typeDefs = typeDefs
-        .replace(typeMatcher, "")
-        .replace(fieldMatcher, "\n")
-        .replace(/type Mutation\s{\s+}/, "");
+        .replace(typeMatcher, '')
+        .replace(fieldMatcher, '\n')
+        .replace(/type Mutation\s{\s+}/, '');
     });
 
     // // Build schema.
